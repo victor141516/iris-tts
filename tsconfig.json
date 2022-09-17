@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "baseUrl": "./src",
+    "sourceMap": true,
+    "target": "es2020",
+    "lib": ["esnext"],
+    "outDir": "dist",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "typeRoots": ["./src/@types"],
+    "skipLibCheck": true,
+    "declaration": true
+  },
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  }
+}
