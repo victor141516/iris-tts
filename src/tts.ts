@@ -77,6 +77,7 @@ async function getShortVoice(text: string): Promise<Buffer> {
         rej(Error(THROTTLING))
       } else {
         console.error('Unhandled status code:', msg.statusCode, { msg })
+        rej(Error(THROTTLING))
       }
     })
     ws.on('upgrade', (msg) => console.debug('upgrade event:', { msg }))
