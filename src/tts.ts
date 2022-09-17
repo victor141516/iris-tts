@@ -11,6 +11,7 @@ import {
 } from 'consts'
 
 const THROTTLING = 'THROTTLING'
+const HANDLED_STATUS_CODES = [429, 502, 503]
 
 const getPathLine = (dataString: string) =>
   dataString
@@ -71,11 +72,11 @@ async function getShortVoice(text: string): Promise<Buffer> {
     })
     ws.on('unexpected-response', async (req, msg) => {
       console.debug('unexpected-response event', { text, statusCode: msg.statusCode })
-      if (msg.statusCode === 503) {
-        ws.close()
-        res(await getShortVoice(text))
-      } else if (msg.statusCode === 429) {
+      ws.close()
+      if (HANDLED_STATUS_CODES.includes(msg.statusCode!)) {
         rej(Error(THROTTLING))
+      } else {
+        console.error('Unhandled status code:', msg.statusCode, { msg })
       }
     })
     ws.on('upgrade', (msg) => console.debug('upgrade event:', { msg }))
