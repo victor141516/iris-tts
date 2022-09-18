@@ -23,7 +23,7 @@ function splitTextChunks(text: string, maxChunkSize = 1000) {
     dotPositions.push(pos)
   }
   dotPositions.push(text.length)
-  dotPositions.unshift(0)
+  dotPositions.unshift(-1)
 
   let lastIndex = 0
   while (lastIndex !== dotPositions.length - 1) {
