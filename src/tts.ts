@@ -19,12 +19,41 @@ const getPathLine = (dataString: string) =>
     .find((l) => l.startsWith(MESSAGE_FIELDS.PATH))
     ?.trim()
 
+function splitTextChunks(text: string, maxChunkSize = 1000) {
+  const dotPositions = [] as number[]
+
+  while (true) {
+    const pos = text.indexOf('.', (dotPositions.at(-1) ?? -1) + 1)
+    if (pos === -1) break
+    dotPositions.push(pos)
+  }
+  dotPositions.unshift(0)
+
+  let lastIndex = 0
+  while (lastIndex !== dotPositions.length - 1) {
+    const gap = dotPositions[lastIndex + 1] - dotPositions[lastIndex]
+    if (gap <= maxChunkSize + 1) {
+      const maybeGap = dotPositions[lastIndex + 2] - dotPositions[lastIndex]
+      if (maybeGap <= maxChunkSize + 1) {
+        dotPositions.splice(lastIndex + 1, 1)
+      } else {
+        lastIndex++
+      }
+    } else {
+      lastIndex++
+    }
+  }
+
+  const chunks = [] as string[]
+  for (let i = 0; i < dotPositions.length - 1; i++) {
+    chunks.push(text.slice(dotPositions[i] + 1, dotPositions[i + 1] + 1).trim())
+  }
+
+  return chunks
+}
+
 export async function* getVoiceChunks(text: string): AsyncGenerator<Buffer> {
-  const lines = text
-    .split(/[\.\n]/)
-    .map((l) => l.trim())
-    .filter((l) => l !== '')
-    .map((l) => l + '.')
+  const lines = splitTextChunks(text)
 
   let index = 0
   const initTs = Date.now()
