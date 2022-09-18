@@ -13,6 +13,8 @@ import {
 const THROTTLING = 'THROTTLING'
 const HANDLED_STATUS_CODES = [429, 502, 503]
 
+type Voice = 'es-ES-AlvaroNeural' | 'es-UY-ValentinaNeural'
+
 const getPathLine = (dataString: string) =>
   dataString
     .split('\n')
@@ -52,7 +54,7 @@ function splitTextChunks(text: string, maxChunkSize = 1000) {
   return chunks
 }
 
-export async function* getVoiceChunks(text: string): AsyncGenerator<Buffer> {
+export async function* getVoiceChunks(text: string, voice: Voice): AsyncGenerator<Buffer> {
   const lines = splitTextChunks(text)
 
   let index = 0
@@ -75,7 +77,7 @@ export async function* getVoiceChunks(text: string): AsyncGenerator<Buffer> {
     while (true) {
       try {
         console.debug('Begin getShortVoice')
-        const chunk = await getShortVoice(line)
+        const chunk = await getShortVoice(line, voice)
         console.debug('End getShortVoice')
         yield chunk
         break
@@ -94,7 +96,7 @@ export async function* getVoiceChunks(text: string): AsyncGenerator<Buffer> {
   }
 }
 
-async function getShortVoice(text: string): Promise<Buffer> {
+async function getShortVoice(text: string, voice: Voice): Promise<Buffer> {
   const reqId = uuidv4().replaceAll('-', '').toUpperCase()
   const audio = await new Promise<Buffer>((res, rej) => {
     console.debug('Connecting to ws')
@@ -125,7 +127,7 @@ async function getShortVoice(text: string): Promise<Buffer> {
       console.debug('open event')
       const m1 = generateSpeechConfigMessage(reqId)
       const m2 = generateSynthesisContextMessage(reqId)
-      const m3 = generateSSMLMessage(reqId, VOICE, text)
+      const m3 = generateSSMLMessage(reqId, voice, text)
       console.debug('sending m1')
       ws.send(m1)
       console.debug('sending m2')

@@ -3,7 +3,7 @@ import { open } from 'fs/promises'
 import { getVoiceChunks } from 'tts'
 
 const book = readFileSync('./book.txt').toString()
-const iterator = getVoiceChunks(book)
+const iterator = getVoiceChunks(book, 'es-ES-AlvaroNeural')
 
 ;(async () => {
   const f = await open('./audio.mp3', 'w+')
