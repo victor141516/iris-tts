@@ -1,7 +1,7 @@
 import WebSocket from 'ws'
 import { v4 as uuidv4 } from 'uuid'
-import { generateSpeechConfigMessage, generateSynthesisContextMessage, generateSSMLMessage } from 'messages'
-import { AUDIO_MESSAGE_PAYLOAD_OFFSET, BASE_WS_URL, MESSAGE_FIELDS, PATHS, THROTTLING_ERROR_MESSAGE } from 'consts'
+import { generateSpeechConfigMessage, generateSynthesisContextMessage, generateSSMLMessage } from './messages'
+import { AUDIO_MESSAGE_PAYLOAD_OFFSET, BASE_WS_URL, MESSAGE_FIELDS, PATHS, THROTTLING_ERROR_MESSAGE } from './consts'
 
 const THROTTLING = 'THROTTLING'
 const HANDLED_STATUS_CODES = [429, 502, 503]
@@ -22,6 +22,7 @@ function splitTextChunks(text: string, maxChunkSize = 1000) {
     if (pos === -1) break
     dotPositions.push(pos)
   }
+  dotPositions.push(text.length)
   dotPositions.unshift(0)
 
   let lastIndex = 0

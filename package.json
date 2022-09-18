@@ -9,7 +9,7 @@
   "scripts": {
     "start": "ts-node src/index.ts",
     "build:nocheck": "babel src --extensions '.ts' -d dist --delete-dir-on-start",
-    "build": "npm run lint:tsc && npm run build:nocheck",
+    "build": "npm run lint:tsc && npm run build:nocheck && npm run build:declaration",
     "build:declaration": "tsc --emitDeclarationOnly",
     "run-compiled": "node",
     "lint": "eslint src/**",
