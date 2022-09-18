@@ -1,14 +1,7 @@
 import WebSocket from 'ws'
 import { v4 as uuidv4 } from 'uuid'
 import { generateSpeechConfigMessage, generateSynthesisContextMessage, generateSSMLMessage } from 'messages'
-import {
-  AUDIO_MESSAGE_PAYLOAD_OFFSET,
-  BASE_WS_URL,
-  MESSAGE_FIELDS,
-  PATHS,
-  THROTTLING_ERROR_MESSAGE,
-  VOICE,
-} from 'consts'
+import { AUDIO_MESSAGE_PAYLOAD_OFFSET, BASE_WS_URL, MESSAGE_FIELDS, PATHS, THROTTLING_ERROR_MESSAGE } from 'consts'
 
 const THROTTLING = 'THROTTLING'
 const HANDLED_STATUS_CODES = [429, 502, 503]
