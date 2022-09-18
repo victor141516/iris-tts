@@ -1,13 +1,14 @@
-import { readFileSync } from 'fs'
-import { open } from 'fs/promises'
-import { getVoiceChunks } from 'tts'
+export { getVoiceChunks } from './tts'
 
-const book = readFileSync('./book.txt').toString()
-const iterator = getVoiceChunks(book)
+// import { open } from 'fs/promises'
+// import { getVoiceChunks } from './tts'
 
-;(async () => {
-  const f = await open('./audio.mp3', 'w+')
-  for await (const chunk of iterator) {
-    f.write(chunk)
-  }
-})()
+// const book = 'hola!'
+// const iterator = getVoiceChunks(book, 'es-ES-AlvaroNeural')
+
+// ;(async () => {
+//   const f = await open('./audio.mp3', 'w+')
+//   for await (const chunk of iterator) {
+//     f.write(chunk)
+//   }
+// })()

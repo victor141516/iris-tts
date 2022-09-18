@@ -67,4 +67,4 @@ typings/
 dist
 
 book.txt
-audio.mp3
+*.mp3

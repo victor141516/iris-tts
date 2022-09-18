@@ -1,16 +1,12 @@
 import WebSocket from 'ws'
 import { v4 as uuidv4 } from 'uuid'
-import { generateSpeechConfigMessage, generateSynthesisContextMessage, generateSSMLMessage } from 'messages'
-import {
-  AUDIO_MESSAGE_PAYLOAD_OFFSET,
-  BASE_WS_URL,
-  MESSAGE_FIELDS,
-  PATHS,
-  THROTTLING_ERROR_MESSAGE,
-  VOICE,
-} from 'consts'
+import { generateSpeechConfigMessage, generateSynthesisContextMessage, generateSSMLMessage } from './messages'
+import { AUDIO_MESSAGE_PAYLOAD_OFFSET, BASE_WS_URL, MESSAGE_FIELDS, PATHS, THROTTLING_ERROR_MESSAGE } from './consts'
 
 const THROTTLING = 'THROTTLING'
+const HANDLED_STATUS_CODES = [429, 502, 503]
+
+type Voice = 'es-ES-AlvaroNeural' | 'es-UY-ValentinaNeural'
 
 const getPathLine = (dataString: string) =>
   dataString
@@ -18,24 +14,64 @@ const getPathLine = (dataString: string) =>
     .find((l) => l.startsWith(MESSAGE_FIELDS.PATH))
     ?.trim()
 
-export async function* getVoiceChunks(text: string): AsyncGenerator<Buffer> {
-  const lines = text
-    .split(/[\.\n]/)
-    .map((l) => l.trim())
-    .filter((l) => l !== '')
-    .map((l) => l + '.')
+function splitTextChunks(text: string, maxChunkSize = 1000) {
+  const dotPositions = [] as number[]
+
+  while (true) {
+    const pos = text.indexOf('.', (dotPositions.at(-1) ?? -1) + 1)
+    if (pos === -1) break
+    dotPositions.push(pos)
+  }
+  dotPositions.push(text.length)
+  dotPositions.unshift(0)
+
+  let lastIndex = 0
+  while (lastIndex !== dotPositions.length - 1) {
+    const gap = dotPositions[lastIndex + 1] - dotPositions[lastIndex]
+    if (gap <= maxChunkSize + 1) {
+      const maybeGap = dotPositions[lastIndex + 2] - dotPositions[lastIndex]
+      if (maybeGap <= maxChunkSize + 1) {
+        dotPositions.splice(lastIndex + 1, 1)
+      } else {
+        lastIndex++
+      }
+    } else {
+      lastIndex++
+    }
+  }
+
+  const chunks = [] as string[]
+  for (let i = 0; i < dotPositions.length - 1; i++) {
+    chunks.push(text.slice(dotPositions[i] + 1, dotPositions[i + 1] + 1).trim())
+  }
+
+  return chunks
+}
+
+export async function* getVoiceChunks(text: string, voice: Voice): AsyncGenerator<Buffer> {
+  const lines = splitTextChunks(text)
 
   let index = 0
   const initTs = Date.now()
   for (const line of lines) {
     let retries = 0
     const progress = index / lines.length
-    const secondsRemaining = (Date.now() - initTs) / progress / 1000
-    console.debug(`Progress: ${(progress * 100).toFixed(4)}% (ETA ${secondsRemaining / 60} minutes)`)
+    const secondsRemaining = ((Date.now() - initTs) * (1 - progress)) / progress / 1000
+    console.info(
+      `Progress: ${(progress * 100).toFixed(4)}%${
+        Number.isNaN(secondsRemaining)
+          ? ''
+          : ` (ETA ${
+              secondsRemaining / 60 > 1
+                ? `${(secondsRemaining / 60).toFixed(1)} minutes`
+                : `${secondsRemaining.toFixed(1)} seconds`
+            })`
+      }`,
+    )
     while (true) {
       try {
         console.debug('Begin getShortVoice')
-        const chunk = await getShortVoice(line)
+        const chunk = await getShortVoice(line, voice)
         console.debug('End getShortVoice')
         yield chunk
         break
@@ -54,7 +90,7 @@ export async function* getVoiceChunks(text: string): AsyncGenerator<Buffer> {
   }
 }
 
-async function getShortVoice(text: string): Promise<Buffer> {
+async function getShortVoice(text: string, voice: Voice): Promise<Buffer> {
   const reqId = uuidv4().replaceAll('-', '').toUpperCase()
   const audio = await new Promise<Buffer>((res, rej) => {
     console.debug('Connecting to ws')
@@ -65,16 +101,17 @@ async function getShortVoice(text: string): Promise<Buffer> {
 
       // data not consistent with the type of the message
       if (code === 1007) {
-        console.log({ text })
+        console.debug({ text, code, msg: buffer.toString() })
         rej(Error(THROTTLING))
       }
     })
     ws.on('unexpected-response', async (req, msg) => {
       console.debug('unexpected-response event', { text, statusCode: msg.statusCode })
-      if (msg.statusCode === 503) {
-        ws.close()
-        res(await getShortVoice(text))
-      } else if (msg.statusCode === 429) {
+      ws.close()
+      if (HANDLED_STATUS_CODES.includes(msg.statusCode!)) {
+        rej(Error(THROTTLING))
+      } else {
+        console.error('Unhandled status code:', msg.statusCode, { msg })
         rej(Error(THROTTLING))
       }
     })
@@ -84,7 +121,7 @@ async function getShortVoice(text: string): Promise<Buffer> {
       console.debug('open event')
       const m1 = generateSpeechConfigMessage(reqId)
       const m2 = generateSynthesisContextMessage(reqId)
-      const m3 = generateSSMLMessage(reqId, VOICE, text)
+      const m3 = generateSSMLMessage(reqId, voice, text)
       console.debug('sending m1')
       ws.send(m1)
       console.debug('sending m2')
