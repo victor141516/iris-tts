@@ -60,8 +60,18 @@ export async function* getVoiceChunks(text: string): AsyncGenerator<Buffer> {
   for (const line of lines) {
     let retries = 0
     const progress = index / lines.length
-    const secondsRemaining = (Date.now() - initTs) / progress / 1000
-    console.debug(`Progress: ${(progress * 100).toFixed(4)}% (ETA ${secondsRemaining / 60} minutes)`)
+    const secondsRemaining = ((Date.now() - initTs) * (1 - progress)) / progress / 1000
+    console.info(
+      `Progress: ${(progress * 100).toFixed(4)}%${
+        Number.isNaN(secondsRemaining)
+          ? ''
+          : ` (ETA ${
+              secondsRemaining / 60 > 1
+                ? `${(secondsRemaining / 60).toFixed(1)} minutes`
+                : `${secondsRemaining.toFixed(1)} seconds`
+            })`
+      }`,
+    )
     while (true) {
       try {
         console.debug('Begin getShortVoice')
@@ -95,7 +105,7 @@ async function getShortVoice(text: string): Promise<Buffer> {
 
       // data not consistent with the type of the message
       if (code === 1007) {
-        console.log({ text })
+        console.debug({ text, code, msg: buffer.toString() })
         rej(Error(THROTTLING))
       }
     })
