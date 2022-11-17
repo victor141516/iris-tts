@@ -1,7 +1,14 @@
 import WebSocket from 'ws'
 import { v4 as uuidv4 } from 'uuid'
 import { generateSpeechConfigMessage, generateSynthesisContextMessage, generateSSMLMessage } from './messages'
-import { AUDIO_MESSAGE_PAYLOAD_OFFSET, BASE_WS_URL, MESSAGE_FIELDS, PATHS, THROTTLING_ERROR_MESSAGE } from './consts'
+import {
+  AUDIO_MESSAGE_PAYLOAD_OFFSET,
+  BASE_WS_URL,
+  MESSAGE_FIELDS,
+  PATHS,
+  THROTTLING_ERROR_MESSAGE,
+  HTTP_HEADERS,
+} from './consts'
 
 const THROTTLING = 'THROTTLING'
 const HANDLED_STATUS_CODES = [429, 502, 503]
@@ -82,7 +89,9 @@ export async function* getVoiceChunks(text: string, voice: Voice, handler?: Hand
 async function getShortVoice(text: string, voice: Voice): Promise<Buffer> {
   const reqId = uuidv4().replaceAll('-', '').toUpperCase()
   const audio = await new Promise<Buffer>((res, rej) => {
-    const ws = new WebSocket(`${BASE_WS_URL}${reqId}`)
+    const ws = new WebSocket(`${BASE_WS_URL}${reqId}`, {
+      headers: HTTP_HEADERS,
+    })
 
     ws.on('close', (code, buffer) => {
       // data not consistent with the type of the message

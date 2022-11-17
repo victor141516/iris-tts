@@ -10,3 +10,16 @@ export const PATHS = {
 }
 export const AUDIO_MESSAGE_PAYLOAD_OFFSET = 130
 export const THROTTLING_ERROR_MESSAGE = 'Unexpected server response: 429'
+export const HTTP_HEADERS = {
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Cache-Control': 'no-cache',
+  Connection: 'Upgrade',
+  Host: 'eastus.api.speech.microsoft.com',
+  Origin: 'https://azure.microsoft.com',
+  Pragma: 'no-cache',
+  'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
+  'Sec-WebSocket-Version': '13',
+  Upgrade: 'websocket',
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
+}
