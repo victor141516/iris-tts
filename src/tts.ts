@@ -82,13 +82,20 @@ export async function* getVoiceChunks(text: string, voice: Voice, handler?: Hand
         } else throw new Error((error as any)?.toString() ?? 'Unknown error')
       }
     }
+    await new Promise((res) => setTimeout(res, 1000))
     index++
   }
 }
 
 async function getShortVoice(text: string, voice: Voice): Promise<Buffer> {
   const reqId = uuidv4().replaceAll('-', '').toUpperCase()
+  let ok = false
   const audio = await new Promise<Buffer>((res, rej) => {
+    setTimeout(() => {
+      if (ok) return
+      rej(Error(THROTTLING))
+      ws.terminate()
+    }, 5000)
     const ws = new WebSocket(`${BASE_WS_URL}${reqId}`, {
       headers: HTTP_HEADERS,
     })
@@ -99,7 +106,7 @@ async function getShortVoice(text: string, voice: Voice): Promise<Buffer> {
         console.warn('WS closed with code 1007')
         rej(Error(THROTTLING))
       } else if (code !== 1000) {
-        console.error('WS closes with unexpected code', code, { buffer })
+        console.error('WS closes with unexpected code', code, { buffer: buffer.toString() })
       }
     })
     ws.on('unexpected-response', async (req, msg) => {
@@ -135,6 +142,7 @@ async function getShortVoice(text: string, voice: Voice): Promise<Buffer> {
         } else if (path === `${MESSAGE_FIELDS.PATH}:${PATHS.END}`) {
           ws.close()
           res(Buffer.concat(chunks))
+          ok = true
         }
       } else {
         throw { bin: data, string: dataString }
@@ -144,7 +152,7 @@ async function getShortVoice(text: string, voice: Voice): Promise<Buffer> {
       if (e.message === THROTTLING_ERROR_MESSAGE) {
         rej(Error(THROTTLING))
       } else {
-        console.log('WS error:', e, e.message, JSON.stringify(e))
+        // console.log('WS error:', e, e.message, JSON.stringify(e))
       }
     })
   })
