@@ -1,27 +1,13 @@
-import WebSocket from 'ws'
-import { v4 as uuidv4 } from 'uuid'
-import { generateSpeechConfigMessage, generateSynthesisContextMessage, generateSSMLMessage } from './messages'
-import {
-  AUDIO_MESSAGE_PAYLOAD_OFFSET,
-  BASE_WS_URL,
-  MESSAGE_FIELDS,
-  PATHS,
-  THROTTLING_ERROR_MESSAGE,
-  HTTP_HEADERS,
-} from './consts'
+import fetch from 'node-fetch'
+import { HTTP_ENDPOINT } from './consts'
+import { generateHttpRequest } from './messages'
 
 const THROTTLING = 'THROTTLING'
-const HANDLED_STATUS_CODES = [429, 502, 503]
 
-type Voice = 'es-ES-AlvaroNeural' | 'es-UY-ValentinaNeural'
+export type Voice = 'es-ES-AlvaroNeural' | 'es-UY-ValentinaNeural'
 
-const getPathLine = (dataString: string) =>
-  dataString
-    .split('\n')
-    .find((l) => l.startsWith(MESSAGE_FIELDS.PATH))
-    ?.trim()
-
-function splitTextChunks(text: string, maxChunkSize = 1000) {
+function splitTextChunks(text: string, voice: Voice, maxChunkSize = 1000) {
+  const ssmlWrapperOffset = generateHttpRequest('', voice).body.length
   const dotPositions = [] as number[]
 
   while (true) {
@@ -35,7 +21,7 @@ function splitTextChunks(text: string, maxChunkSize = 1000) {
   let lastIndex = 0
   while (lastIndex !== dotPositions.length - 1) {
     const gap = dotPositions[lastIndex + 1] - dotPositions[lastIndex]
-    if (gap <= maxChunkSize + 1) {
+    if (gap + ssmlWrapperOffset <= maxChunkSize + 1) {
       const maybeGap = dotPositions[lastIndex + 2] - dotPositions[lastIndex]
       if (maybeGap <= maxChunkSize + 1) {
         dotPositions.splice(lastIndex + 1, 1)
@@ -57,8 +43,13 @@ function splitTextChunks(text: string, maxChunkSize = 1000) {
 
 type Handler = { throttling?: (ms: number) => void; progress?: (progress: number, eta: number) => void } | undefined
 
-export async function* getVoiceChunks(text: string, voice: Voice, handler?: Handler): AsyncGenerator<Buffer> {
-  const lines = splitTextChunks(text)
+export async function* getVoiceChunks(
+  text: string,
+  voice: Voice,
+  handler?: Handler,
+  maxChunkSize = 1000,
+): AsyncGenerator<Buffer> {
+  const lines = splitTextChunks(text, voice, maxChunkSize)
 
   let index = 0
   const initTs = Date.now()
@@ -74,6 +65,10 @@ export async function* getVoiceChunks(text: string, voice: Voice, handler?: Hand
         break
       } catch (error) {
         if ((error as Error).message === THROTTLING) {
+          if (retries > 7) {
+            if (maxChunkSize < 5) break // ignore this little chunk
+            yield* getVoiceChunks(line, voice, handler, maxChunkSize / 2)
+          }
           const time = 2 ** retries * 100
           handler?.throttling?.(time)
           await new Promise((res) => setTimeout(res, time))
@@ -87,75 +82,13 @@ export async function* getVoiceChunks(text: string, voice: Voice, handler?: Hand
   }
 }
 
-async function getShortVoice(text: string, voice: Voice): Promise<Buffer> {
-  const reqId = uuidv4().replaceAll('-', '').toUpperCase()
-  let ok = false
-  const audio = await new Promise<Buffer>((res, rej) => {
-    setTimeout(() => {
-      if (ok) return
-      rej(Error(THROTTLING))
-      ws.terminate()
-    }, 5000)
-    const ws = new WebSocket(`${BASE_WS_URL}${reqId}`, {
-      headers: HTTP_HEADERS,
+export async function getShortVoice(text: string, voice: Voice): Promise<Buffer> {
+  try {
+    return await fetch(HTTP_ENDPOINT, generateHttpRequest(text, voice)).then((res) => {
+      return res.buffer()
     })
-
-    ws.on('close', (code, buffer) => {
-      // data not consistent with the type of the message
-      if (code === 1007) {
-        console.warn('WS closed with code 1007')
-        rej(Error(THROTTLING))
-      } else if (code !== 1000) {
-        console.error('WS closes with unexpected code', code, { buffer: buffer.toString() })
-      }
-    })
-    ws.on('unexpected-response', async (req, msg) => {
-      ws.close()
-      if (HANDLED_STATUS_CODES.includes(msg.statusCode!)) {
-        rej(Error(THROTTLING))
-      } else {
-        console.error('Unhandled status code:', msg.statusCode, { msg })
-        rej(Error(THROTTLING))
-      }
-    })
-
-    ws.on('open', () => {
-      const m1 = generateSpeechConfigMessage(reqId)
-      const m2 = generateSynthesisContextMessage(reqId)
-      const m3 = generateSSMLMessage(reqId, voice, text)
-      ws.send(m1)
-      ws.send(m2)
-      ws.send(m3)
-    })
-
-    const chunks: Array<Buffer> = []
-
-    ws.on('message', (data: Buffer) => {
-      const dataString = data.toString()
-      if (dataString.includes(MESSAGE_FIELDS.X_REQUEST_ID)) {
-        const path = getPathLine(dataString)
-        if (path === `${MESSAGE_FIELDS.PATH}:${PATHS.AUDIO}`) {
-          const chunk = data.subarray(AUDIO_MESSAGE_PAYLOAD_OFFSET)
-          if (chunk.length !== 0) {
-            chunks.push(chunk)
-          }
-        } else if (path === `${MESSAGE_FIELDS.PATH}:${PATHS.END}`) {
-          ws.close()
-          res(Buffer.concat(chunks))
-          ok = true
-        }
-      } else {
-        throw { bin: data, string: dataString }
-      }
-    })
-    ws.on('error', (e) => {
-      if (e.message === THROTTLING_ERROR_MESSAGE) {
-        rej(Error(THROTTLING))
-      } else {
-        // console.log('WS error:', e, e.message, JSON.stringify(e))
-      }
-    })
-  })
-
-  return audio
+  } catch (error) {
+    console.error('Error fetching voice', error)
+    throw new Error(THROTTLING)
+  }
 }

@@ -1,25 +1,21 @@
-export const BASE_WS_URL =
-  'wss://eastus.api.speech.microsoft.com/cognitiveservices/websocket/v1?TrafficType=AzureDemo&Authorization=bearer%20undefined&X-ConnectionId='
-export const MESSAGE_FIELDS = {
-  X_REQUEST_ID: 'X-RequestId',
-  PATH: 'Path',
-}
-export const PATHS = {
-  AUDIO: 'audio',
-  END: 'turn.end',
-}
-export const AUDIO_MESSAGE_PAYLOAD_OFFSET = 130
-export const THROTTLING_ERROR_MESSAGE = 'Unexpected server response: 429'
 export const HTTP_HEADERS = {
+  Accept: '*/*',
   'Accept-Encoding': 'gzip, deflate, br',
+  'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
   'Cache-Control': 'no-cache',
-  Connection: 'Upgrade',
-  Host: 'eastus.api.speech.microsoft.com',
+  'Content-Type': 'application/json',
   Origin: 'https://azure.microsoft.com',
   Pragma: 'no-cache',
-  'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
-  'Sec-WebSocket-Version': '13',
-  Upgrade: 'websocket',
+  Referer: 'https://azure.microsoft.com/',
+  'Sec-Ch-Ua': '"Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"',
+  'Sec-Ch-Ua-Mobile': '?0',
+  'Sec-Ch-Ua-Platform': '"macOS"',
+  'Sec-Fetch-Dest': 'empty',
+  'Sec-Fetch-Mode': 'cors',
+  'Sec-Fetch-Site': 'same-site',
   'User-Agent':
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36',
 }
+
+export const HTTP_ENDPOINT =
+  'https://westus.api.speech.microsoft.com/accfreetrial/texttospeech/acc/v3.0-beta1/vcg/speak'
